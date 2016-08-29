@@ -85,40 +85,17 @@ print '############################################'
 print
 
 Hsum = numpy.dot(input_matrix, weights_hidden_matrix)
-
-I7 = input_matrix[3][0]
-I8 = input_matrix[3][1]
-H1sum = I7 * weights_hidden_matrix[0][0] + I8 * weights_hidden_matrix[1][0]
-H2sum = I7 * weights_hidden_matrix[0][1] + I8 * weights_hidden_matrix[1][1]
-H3sum = I7 * weights_hidden_matrix[0][2] + I8 * weights_hidden_matrix[1][2]
-H1 = sigmoid(H1sum)
-H2 = sigmoid(H2sum)
-H3 = sigmoid(H3sum)
 H = sigmoid(Hsum)
-print 'Input'
-print input_matrix
-print
-print 'Weights'
-print weights_hidden_matrix
-print
 print 'Hidden Values'
 print H
 print
 print
-
-Osum = H1 * weights_output_matrix[0][0] + H2 * weights_output_matrix[1][0] + H3 * weights_output_matrix[2][0]
-output = sigmoid(Osum)
 
 OsumM = numpy.dot(H, weights_output_matrix)
 outputM = sigmoid(OsumM)
-print 'Hidden Values'
-print H
-print
-print 'Weights Output'
-print weights_output_matrix
-print
 print 'Output Value'
 print outputM
+print
 print
 
 #Back Propation starts
@@ -126,14 +103,10 @@ print '############################################'
 print '### Back Propagation ###'
 print '############################################'
 print
-target_value = 0
-error_amount = target_value - output
-rate_of_change_at_sum = sigmoid_prime(Osum)
-DeltaOutputSum = rate_of_change_at_sum * error_amount # moved our output sum by the error amount
-
 error_matrix = output_matrix - outputM
 sigmoid_prime_osum = sigmoid_prime(OsumM)
 DeltaOutputSumMatrix = sigmoid_prime_osum * error_matrix
+
 print 'Error Matrix:'
 print error_matrix
 print
@@ -144,11 +117,6 @@ print 'DeltaOutputSum: sigmoid_prime_osum * error_matrix'
 print DeltaOutputSumMatrix
 print
 
-delta_weights_output = weights_output_matrix.copy()
-updated_weights_output = weights_output_matrix.copy()
-delta_weights_output[0][0] = DeltaOutputSum / H1;
-delta_weights_output[1][0] = DeltaOutputSum / H2;
-delta_weights_output[2][0] = DeltaOutputSum / H3;
 DeltaWeightsMatrix = DeltaOutputSumMatrix / H
 DeltaWeightsMatrix = numpy.sum(DeltaWeightsMatrix, axis=0) # Combine all my deltas for each input
 DeltaWeightsMatrix = numpy.reshape(DeltaWeightsMatrix, (3,1))
@@ -170,23 +138,14 @@ print 'Reshaped to (3,1) to combine to the output weights matrix'
 print DeltaWeightsMatrix
 print
 
-updated_weights_output[0][0] = weights_output_matrix[0][0] + delta_weights_output[0][0]
-updated_weights_output[1][0] = weights_output_matrix[1][0] + delta_weights_output[1][0]
-updated_weights_output[2][0] = weights_output_matrix[2][0] + delta_weights_output[1][0]
 UpdatedWeightsMatrix = weights_output_matrix + DeltaWeightsMatrix
 
 print 'NewOutputWeights:'
 print UpdatedWeightsMatrix
 print
 print
-print
-
 
 #                  ( How much each hidden layer affects DeltaOutputSum) * rate of change of input of H
-H1delta_hidden_sum = DeltaOutputSum / weights_output_matrix[0][0] * sigmoid_prime(H1sum)
-H2delta_hidden_sum = DeltaOutputSum / weights_output_matrix[1][0] * sigmoid_prime(H2sum)
-H3delta_hidden_sum = DeltaOutputSum / weights_output_matrix[2][0] * sigmoid_prime(H3sum)
-
 weights_output_matrix_reshaped_invert_for_division = 1 / weights_output_matrix.transpose()
 Hdelta_hidden_sum = DeltaOutputSumMatrix * weights_output_matrix_reshaped_invert_for_division * sigmoid_prime(Hsum)
 
@@ -231,58 +190,11 @@ print New_weights_input
 print
 
 
-
-
-
-
-#delta_weights_input = weights_hidden_matrix.copy()
-#new_weights_input = weights_hidden_matrix.copy()
-## [Weight into H1, Weight into H2, Weight into H3]
-## [Weight into H1, Weight into H2, Weight into H3]
-#delta_weights_input[0][0] = H1delta_hidden_sum / I7; delta_weights_input[0][1] = H2delta_hidden_sum / I7; delta_weights_input[0][2] = H3delta_hidden_sum / I7
-#delta_weights_input[1][0] = H1delta_hidden_sum / I8; delta_weights_input[1][1] = H2delta_hidden_sum / I8; delta_weights_input[1][2] = H3delta_hidden_sum / I8
-#
-#new_weights_input[0][0] += delta_weights_input[0][0]; new_weights_input[0][1] += delta_weights_input[0][1]; new_weights_input[0][2] += delta_weights_input[0][2]
-#new_weights_input[1][0] += delta_weights_input[1][0]; new_weights_input[1][1] += delta_weights_input[1][1]; new_weights_input[1][2] += delta_weights_input[1][2]
-#
-#
-#print 'DeltaInputWeights:'
-#print delta_weights_input
-#print
-#print 'OldInputWeights:'
-#print weights_hidden_matrix
-#print
-#print 'NewInputWeights:'
-#print new_weights_input
-#print
-#
-
-
 #Forward Propagation starts
 print '############################################'
 print '### Forward Propagation for input (1, 1) ###'
 print '############################################'
 print
-#I7 = input_matrix[3][0]
-#I8 = input_matrix[3][1]
-#H1sum = I7 * new_weights_input[0][0] + I8 * new_weights_input[1][0]
-#H2sum = I7 * new_weights_input[0][1] + I8 * new_weights_input[1][1]
-#H3sum = I7 * new_weights_input[0][2] + I8 * new_weights_input[1][2]
-#H1 = sigmoid(H1sum)
-#H2 = sigmoid(H2sum)
-#H3 = sigmoid(H3sum)
-#print 'Hidden Values'
-#print H1
-#print H2
-#print H3
-#print
-#Osum = H1 * updated_weights_output[0][0] + H2 * updated_weights_output[1][0] + H3 * updated_weights_output[2][0]
-#output = sigmoid(Osum)
-#print 'Output Value'
-#print output
-#print
-
-
 
 Hsum = numpy.dot(input_matrix, New_weights_input)
 H = sigmoid(Hsum)
@@ -306,3 +218,10 @@ print 'Output Value'
 print outputM
 print
 
+
+
+#Output Value
+#[[ 0.59223702]
+# [ 0.61751077]
+# [ 0.60540027]
+# [ 0.62864899]]
