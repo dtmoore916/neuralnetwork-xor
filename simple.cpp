@@ -215,7 +215,7 @@ void back_propagate()
 
 			// Add up all the delta output sums of all our output synapses
 			delta_output_sum_total +=
-				(next_node->delta_output_sum / node->synapse_outputs[i]->weight)
+				(next_node->delta_output_sum * node->synapse_outputs[i]->weight)
 				* sigmoid_prime(node->value);
 		}
 
@@ -228,6 +228,13 @@ void back_propagate()
 			/*** Output node ***/
 			float delta_error = node->target_value - node->activated_value;
 			node->delta_output_sum = sigmoid_prime(node->value) * (delta_error);
+			//printf("delta_error: %f dos: %f value: %f s': %f", delta_error, node->delta_output_sum,
+			//	node->value, sigmoid_prime(node->value));
+		}
+
+		float total_synapse_weight = 0.0;
+		for(int i = 0; i < node->synapse_inputs.size(); ++i) {
+			total_synapse_weight += node->synapse_inputs[i]->weight;
 		}
 
 		// Now distribute the delta output sum amoung my input synapses
@@ -235,8 +242,14 @@ void back_propagate()
 			struct synapse *synapse = node->synapse_inputs[i];
 			struct node *prev_node = synapse->reverse_node;
 
+			//synapse->updated_weight = synapse->weight +
+			//	(node->delta_output_sum * (synapse->weight / total_synapse_weight));
+
+			//synapse->updated_weight = synapse->weight +
+			//	((node->delta_output_sum / prev_node->activated_value) * 1.0/*learn rate*/);
+
 			synapse->updated_weight = synapse->weight +
-				((node->delta_output_sum / prev_node->activated_value) * 1.0/*learn rate*/);
+				((node->delta_output_sum * prev_node->activated_value) * 1.0/*learn rate*/);
 
 			#ifdef DEBUG
 				printf("%s: DOS: %f activated_value: %f weight: %f, updated_weight: %f\n",
@@ -320,40 +333,43 @@ int main(int argc, char *argv[])
 	gOutputNodes.push_back(output1);
 
 	gInput1_Values.push_back(1.0);
-	gInput2_Values.push_back(1.0); /* --> */ gOutput_Values.push_back(0.1);
+	gInput2_Values.push_back(1.0); /* --> */ gOutput_Values.push_back(0.01);
 
-	gInput1_Values.push_back(0.1);
+	gInput1_Values.push_back(0.01);
 	gInput2_Values.push_back(1.0); /* --> */ gOutput_Values.push_back(1.0);
 
-	gInput1_Values.push_back(0.1);
-	gInput2_Values.push_back(0.1); /* --> */ gOutput_Values.push_back(0.1);
+	gInput1_Values.push_back(0.01);
+	gInput2_Values.push_back(0.01); /* --> */ gOutput_Values.push_back(0.01);
 
 	gInput1_Values.push_back(1.0);
-	gInput2_Values.push_back(0.1); /* --> */ gOutput_Values.push_back(1.0);
+	gInput2_Values.push_back(0.01); /* --> */ gOutput_Values.push_back(1.0);
 
-	int num_inputs_to_process = 1;
+	int num_inputs_to_process = 4;
 
-	for (int i = 0; i < 1; i++) {
+	for (int i = 0; i < 10000; i++) {
 		for (int j = 0; j < num_inputs_to_process; ++j) {
 			input1->value = gInput1_Values[j];
 			input2->value = gInput2_Values[j];
 			output1->target_value = gOutput_Values[j];
 
-			printf("Original:\n");
-			print_network();
+			//printf("Original:\n");
+			//print_network();
 			forward_propagate();
-			printf("\n\nForward:\n");
-			print_network();
+			//printf("\n\nForward:\n");
+			//print_network();
 			back_propagate();
-			printf("\n\nBackward:\n");
-			print_network();
+			//printf("\n\nBackward:\n");
+			//print_network();
+
+
 			//printf("(%f, %f): %f  Target Value: %f Error: %f",
 			//	input1->value, input2->value,
 			//	output1->activated_value, output1->target_value,
-			//	(output1->activated_value - output1->target_value)
+			//	(output1->target_value - output1->activated_value)
 			//	);
 			//std::cin.ignore();
 		}
+		//printf("\n");
 
 		update_weights();
 	}
