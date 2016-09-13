@@ -5,25 +5,39 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include <iostream>
+
 #include <queue>
 #include <vector>
+
+//#define DEBUG
 
 std::vector<struct node *> gNodes;
 std::vector<struct synapse *> gSynapses;
 
 std::vector<struct node *> gInputNodes;
 std::vector<struct node *> gOutputNodes;
+
 std::queue<struct node *> gProcessingQueue;
 
+std::vector<float> gInput1_Values;
+std::vector<float> gInput2_Values;
+std::vector<float> gOutput_Values;
+
+float divide(float dividend, float divisor)
+{
+	if (divisor == 0.0) return 0.0;
+	return dividend / divisor;
+}
 
 float sigmoid(float input)
 {
-	return 1/(1+exp(-input));
+	return (1 / (1 + exp(-input)));
 }
 
 float sigmoid_prime(float input)
 {
-	return sigmoid(input) * (1-sigmoid(input));
+	return sigmoid(input) * (1 - sigmoid(input));
 }
 
 struct node* create_node(std::string name, float value)
@@ -50,20 +64,56 @@ void connect_nodes(struct node *from_node, struct node *to_node, float weight)
 	gSynapses.push_back(synapse);
 }
 
+void print_network(void)
+{
+	printf("Nodes:\n");
+	for(int i = 0; i < gNodes.size(); ++i) {
+		printf("%s value %f activated %f target %f dos %f\n",
+			gNodes[i]->name.c_str(), gNodes[i]->value,
+			gNodes[i]->activated_value, gNodes[i]->target_value,
+			gNodes[i]->delta_output_sum);
+	}
+	printf("\n");
+
+	printf("Synapses:\n");
+	for(int i = 0; i < gSynapses.size(); ++i) {
+		printf("%s output %f weight %f updated_weight %f\n",
+			gSynapses[i]->name.c_str(), gSynapses[i]->output,
+			gSynapses[i]->weight,
+			gSynapses[i]->updated_weight);
+	}
+	printf("\n");
+}
+
+void nodes_reset(void)
+{
+	for(int i = 0; i < gNodes.size(); ++i) {
+		gNodes[i]->ready = false;
+	}
+}
+
+void synapses_reset(void)
+{
+	for(int i = 0; i < gSynapses.size(); ++i) {
+		gSynapses[i]->ready = false;
+		gSynapses[i]->updated_weight = 0;
+		gSynapses[i]->output = 0;
+	}
+}
+
 void forward_propagate()
 {
 	for(int i = 0; i < gInputNodes.size(); ++i) {
 		gProcessingQueue.push(gInputNodes[i]);
 	}
 
-	// reset all synapses
-	for(int i = 0; i < gSynapses.size(); ++i) {
-		gSynapses[i]->ready = false;
-	}
+	nodes_reset();
+	synapses_reset();
 
 	while(gProcessingQueue.size() != 0) {
-		bool node_ready = true;
 		struct node *node = gProcessingQueue.front();
+		bool node_ready = true;
+
 		gProcessingQueue.pop();
 
 		// check all nodes input synapses.
@@ -74,43 +124,45 @@ void forward_propagate()
 			}
 		}
 
-		if (node_ready) {
-			if (node->synapse_inputs.size() == 0) {
-				//input node
-				node->activated_value = node->value;
-			} else {
-				for(int i = 0; i < node->synapse_inputs.size(); ++i) {
-					node->value += node->synapse_inputs[i]->output;
-				}
-				node->activated_value = sigmoid(node->value);
+		if (!node_ready)
+			continue;
 
-				#if 1
+		if (node->synapse_inputs.size() == 0) {
+			//input node
+			node->activated_value = node->value;
+		} else {
+			node->value = 0;
+			for(int i = 0; i < node->synapse_inputs.size(); ++i) {
+				node->value += node->synapse_inputs[i]->output;
+			}
+			node->activated_value = sigmoid(node->value);
+
+			#ifdef DEBUG
 				printf("%s: value: %f, activated: %f\n",
 					node->name.c_str(), node->value,
 					node->activated_value);
-				#endif
-			}
+			#endif
+		}
 
-			// process my output synapse
-			for(int i = 0; i < node->synapse_outputs.size(); ++i) {
-				node->synapse_outputs[i]->output = node->synapse_outputs[i]->weight *
-					node->activated_value;
-				node->synapse_outputs[i]->ready = true;
+		// process my output synapse
+		for(int i = 0; i < node->synapse_outputs.size(); ++i) {
+			node->synapse_outputs[i]->output = node->synapse_outputs[i]->weight *
+				node->activated_value;
+			node->synapse_outputs[i]->ready = true;
 
-				// check if the node connected to my output is ready to be
-				// processed
-				struct node *next_node = node->synapse_outputs[i]->forward_node;
-				bool next_node_ready = true;
-				if (next_node->synapse_inputs.size() > 0) {
-					for(int j = 0; j < next_node->synapse_inputs.size(); ++j) {
-						if (!next_node->synapse_inputs[j]->ready) {
-							next_node_ready = false;
-						}
+			// check if the node connected to my output is ready to be
+			// processed
+			struct node *next_node = node->synapse_outputs[i]->forward_node;
+			bool next_node_ready = true;
+			if (next_node->synapse_inputs.size() > 0) {
+				for(int j = 0; j < next_node->synapse_inputs.size(); ++j) {
+					if (!next_node->synapse_inputs[j]->ready) {
+						next_node_ready = false;
 					}
+				}
 
-					if (next_node_ready) {
-						gProcessingQueue.push(next_node);
-					}
+				if (next_node_ready) {
+					gProcessingQueue.push(next_node);
 				}
 			}
 		}
@@ -119,126 +171,108 @@ void forward_propagate()
 
 void back_propagate()
 {
-
-	//Delta output sum = S'(1.235) * (-0.77)
-	//DOS = how much node value must change by
-	// divide that amound the synapes weights
-
-	// DOS / Original Weights * S'(hidden->value) : gives how much hidden value should change
-	// distribute this amount the inputs. (divide)
-	//Delta hidden sum = -0.1344 / [0.3, 0.5, 0.9] * S'([1, 1.3, 0.8])
-
-
-	// For each output node calculate delta error
-	// DOS =  S'(output) * dError
-	// For synapses connected to output node distribute the DOS
-
-	// Synapses connected to previous node:
-	// DHS = DOS / original synapse weight * S'(previous nodes output)
-
-
-	// commonized
-	// Error for the node distribute amoung synapses
-	// Error for the node: S'(value) * dError
-	// dError for output is expected - activated_value
-	// dError for previous nodes:
-	// summation of:
-	//     next node's: Delta Sum Output / original synapse weight
-
-
-	// Outputs special case just calculate dError
-	// Inputs should just flow through no inputs synapses to weight
-
-	// reset all nodes
-	for(int i = 0; i < gNodes.size(); ++i) {
-		gNodes[i]->ready = false;
-	}
+	// For each node we need to compute it's delta output sum and distribute
+	// that amoungst it's input synapses to find their new weight.
+	// For a output node the DOS is delta_error * sigmoid_prime(node->value)
+	// For a hidden node, we need to sum all the DOS from all output synapses.
+	// the DOS of a hidden node is the next node down that (synapse(DOS) / synapse
+	// weight original) * sigmoid_prime(node->value).
 
 	for(int i = 0; i < gOutputNodes.size(); ++i) {
 		gProcessingQueue.push(gOutputNodes[i]);
 	}
 
+	nodes_reset();
+
 	while(gProcessingQueue.size() != 0) {
 		struct node *node = gProcessingQueue.front();
+		float delta_output_sum_total = 0.0;
+		bool node_ready = true;
+
 		gProcessingQueue.pop();
 
 		if (node->synapse_inputs.size() == 0)
-			continue; // Input node
+			continue; // Input nodes are not processed
 
-		if (node->synapse_outputs.size() == 0) {
+		for(int i = 0; i < node->synapse_outputs.size(); ++i) {
+			struct node *next_node = node->synapse_outputs[i]->forward_node;
+			if (!next_node->ready) {
+				node_ready = false;
+			}
+		}
+
+		if (!node_ready) {
+			// This node is not ready yet.  It will be added
+			// again by one of its outputs.
+			continue;
+		}
+
+		/* Only Hidden nodes will loop through here.  Output Nodes have
+		 * no output synapses */
+		delta_output_sum_total = 0;
+		for(int i = 0; i < node->synapse_outputs.size(); ++i) {
+			struct node *next_node = node->synapse_outputs[i]->forward_node;
+
+			// Add up all the delta output sums of all our output synapses
+			delta_output_sum_total +=
+				(next_node->delta_output_sum / node->synapse_outputs[i]->weight)
+				* sigmoid_prime(node->value);
+		}
+
+		// Now compute this nodes delta output sum
+		if (node->synapse_outputs.size() != 0) {
+			/*** Hidden node ***/
+			node->delta_output_sum = (delta_output_sum_total /
+				node->synapse_outputs.size());
+		} else {
 			/*** Output node ***/
 			float delta_error = node->target_value - node->activated_value;
-
 			node->delta_output_sum = sigmoid_prime(node->value) * (delta_error);
+		}
 
-			for(int i = 0; i < node->synapse_inputs.size(); ++i) {
-				struct synapse *synapse = node->synapse_inputs[i];
-				struct node *prev_node = synapse->reverse_node;
+		// Now distribute the delta output sum amoung my input synapses
+		for(int i = 0; i < node->synapse_inputs.size(); ++i) {
+			struct synapse *synapse = node->synapse_inputs[i];
+			struct node *prev_node = synapse->reverse_node;
 
-				synapse->updated_weight = synapse->weight +
-					(node->delta_output_sum / prev_node->activated_value); // TODO: * learn rate
+			synapse->updated_weight = synapse->weight +
+				((node->delta_output_sum / prev_node->activated_value) * 1.0/*learn rate*/);
 
-				#if 1
-				printf("%s: DOS: %f weight: %f, updated_weight: %f\n",
-					synapse->name.c_str(), node->delta_output_sum, synapse->weight,
-					synapse->updated_weight);
-				#endif
-
-				// Just add my input nodes to queue, TODO: only add if not already queued
-				if (synapse->reverse_node != NULL) {
-					gProcessingQueue.push(synapse->reverse_node);
-				}
-			}
-
-			node->ready = true;
-		} else {
-			// Hidden node
-			float delta_output_sum_total = 0.0;
-
-			for(int i = 0; i < node->synapse_outputs.size(); ++i) {
-				struct node *next_node = node->synapse_outputs[i]->forward_node;
-
-				if (!next_node->ready) {
-					// This node is not ready yet.  It will be added
-					// again by one of its outputs.
-					continue;
-				}
-
-				delta_output_sum_total +=
-					(next_node->delta_output_sum / node->synapse_outputs[i]->weight)
-					* sigmoid_prime(node->value);
-			}
-
-			node->delta_output_sum = delta_output_sum_total / node->synapse_outputs.size();
-
-			for(int i = 0; i < node->synapse_inputs.size(); ++i) {
-				struct synapse *synapse = node->synapse_inputs[i];
-				struct node *prev_node = synapse->reverse_node;
-
-				synapse->updated_weight = synapse->weight +
-					(node->delta_output_sum / prev_node->activated_value); // TODO: * learn rate
-
-				#if 1
+			#ifdef DEBUG
 				printf("%s: DOS: %f activated_value: %f weight: %f, updated_weight: %f\n",
 					synapse->name.c_str(), node->delta_output_sum, node->activated_value,
 					synapse->weight, synapse->updated_weight);
-				#endif
+			#endif
 
-				// Just add my input nodes to queue, TODO: only add if not already queued
-				if (synapse->reverse_node != NULL) {
-					gProcessingQueue.push(synapse->reverse_node);
-				}
+			// Just add my input nodes to queue, TODO: only add if not already queued
+			if (synapse->reverse_node != NULL) {
+				gProcessingQueue.push(synapse->reverse_node);
 			}
-
-			node->ready = true;
 		}
+
+		node->ready = true;
 	}
 
+	// actually update our weights the the newly calculated weights
 	for(int i = 0; i < gSynapses.size(); ++i) {
-		gSynapses[i]->weight = gSynapses[i]->updated_weight;
+		gSynapses[i]->updated_weights.push_back(gSynapses[i]->updated_weight);
 	}
 }
 
+void update_weights(void)
+{
+	//printf("\nUpdate Weights:\n");
+	for(int i = 0; i < gSynapses.size(); ++i) {
+		gSynapses[i]->weight = 0;
+		for(int j = 0; j < gSynapses[i]->updated_weights.size(); ++j) {
+			gSynapses[i]->weight += gSynapses[i]->updated_weights[j];
+			//printf("%s %f\n", gSynapses[i]->name.c_str(), gSynapses[i]->updated_weights[j]);
+		}
+		gSynapses[i]->weight /= gSynapses[i]->updated_weights.size();
+		//printf("%s final %f\n", gSynapses[i]->name.c_str(), gSynapses[i]->weight);
+		gSynapses[i]->updated_weights.clear();
+	}
+}
 
 int main(int argc, char *argv[])
 {
@@ -265,15 +299,76 @@ int main(int argc, char *argv[])
 	connect_nodes(hidden2, output1, 0.5);
 	connect_nodes(hidden3, output1, 0.9);
 
+	// Initial weights shouldn't mattter!!!...but they do.  Something is not working
+	//connect_nodes(input1, hidden1, 0.8);
+	//connect_nodes(input1, hidden2, 0.8);
+	//connect_nodes(input1, hidden3, 0.8);
+
+	//connect_nodes(input2, hidden1, 0.8);
+	//connect_nodes(input2, hidden2, 0.8);
+	//connect_nodes(input2, hidden3, 0.8);
+
+	//connect_nodes(hidden1, output1, 0.8);
+	//connect_nodes(hidden2, output1, 0.8);
+	//connect_nodes(hidden3, output1, 0.8);
+
+
+
 	gInputNodes.push_back(input1);
 	gInputNodes.push_back(input2);
+
 	gOutputNodes.push_back(output1);
 
-	forward_propagate();
+	gInput1_Values.push_back(1.0);
+	gInput2_Values.push_back(1.0); /* --> */ gOutput_Values.push_back(0.1);
 
-	printf("Output Value: %f\n", output1->activated_value);
+	gInput1_Values.push_back(0.1);
+	gInput2_Values.push_back(1.0); /* --> */ gOutput_Values.push_back(1.0);
 
-	back_propagate();
+	gInput1_Values.push_back(0.1);
+	gInput2_Values.push_back(0.1); /* --> */ gOutput_Values.push_back(0.1);
+
+	gInput1_Values.push_back(1.0);
+	gInput2_Values.push_back(0.1); /* --> */ gOutput_Values.push_back(1.0);
+
+	int num_inputs_to_process = 1;
+
+	for (int i = 0; i < 1; i++) {
+		for (int j = 0; j < num_inputs_to_process; ++j) {
+			input1->value = gInput1_Values[j];
+			input2->value = gInput2_Values[j];
+			output1->target_value = gOutput_Values[j];
+
+			printf("Original:\n");
+			print_network();
+			forward_propagate();
+			printf("\n\nForward:\n");
+			print_network();
+			back_propagate();
+			printf("\n\nBackward:\n");
+			print_network();
+			//printf("(%f, %f): %f  Target Value: %f Error: %f",
+			//	input1->value, input2->value,
+			//	output1->activated_value, output1->target_value,
+			//	(output1->activated_value - output1->target_value)
+			//	);
+			//std::cin.ignore();
+		}
+
+		update_weights();
+	}
+
+	printf("\n\n");
+	for (int j = 0; j < num_inputs_to_process; j++) {
+		input1->value = gInput1_Values[j];
+		input2->value = gInput2_Values[j];
+		output1->target_value = gOutput_Values[j];
+
+		forward_propagate();
+		printf("(%f, %f): %f  Target Value: %f\n",
+			input1->value, input2->value,
+			output1->activated_value, output1->target_value);
+	}
 
 
 	for(int i = 0; i < gNodes.size(); i++) {

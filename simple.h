@@ -9,21 +9,26 @@ struct synapse;
 
 struct node {
 	std::string name;
+
+	bool ready;
 	float value;
 	float activated_value;
 	float target_value;
 	float delta_output_sum;
-	bool ready;
+
 	std::vector<struct synapse *> synapse_inputs;
 	std::vector<struct synapse *> synapse_outputs;
 };
 
 struct synapse {
 	std::string name;
+
+	bool ready;
+	float output;
 	float weight;
 	float updated_weight;
-	float output;
-	bool ready;
+
+	std::vector<float> updated_weights;
 	struct node *forward_node;
 	struct node *reverse_node;
 };
