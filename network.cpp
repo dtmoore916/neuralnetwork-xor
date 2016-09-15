@@ -103,7 +103,7 @@ void Network::print_results()
 			std::cout << output_nodes[j]->activated_value;
 
 			percent_error += fabs(
-				(output_nodes[j]->target_value - output_nodes[j]->activated_value));
+			                     (output_nodes[j]->target_value - output_nodes[j]->activated_value));
 		}
 		percent_error = percent_error / output_nodes.size() * 100.0;
 		std::cout << std::setprecision(2) << std::fixed;
@@ -232,7 +232,7 @@ void Network::forward_propagate()
 		// process my output synapse
 		for(int i = 0; i < node->synapse_outputs.size(); ++i) {
 			node->synapse_outputs[i]->output = node->synapse_outputs[i]->weight *
-				node->activated_value;
+			                                   node->activated_value;
 			node->synapse_outputs[i]->ready = true;
 
 			// check if the node connected to my output is ready to be
@@ -291,15 +291,15 @@ void Network::back_propagate()
 			class node *next_node = node->synapse_outputs[i]->forward_node;
 
 			delta_output_sum_total +=
-				sigmoid_prime(node->value) *
-				(next_node->delta_output_sum * node->synapse_outputs[i]->weight);
+			    sigmoid_prime(node->value) *
+			    (next_node->delta_output_sum * node->synapse_outputs[i]->weight);
 		}
 
 		// Now compute this nodes delta output sum
 		if (node->synapse_outputs.size() != 0) {
 			// Hidden node
 			node->delta_output_sum = (delta_output_sum_total /
-				node->synapse_outputs.size());
+			                          node->synapse_outputs.size());
 		} else {
 			// Output node
 			float delta_error = node->target_value - node->activated_value;
@@ -313,8 +313,8 @@ void Network::back_propagate()
 			class node *prev_node = synapse->reverse_node;
 
 			synapse->delta_weights.push_back(
-				(node->delta_output_sum * prev_node->activated_value)
-				* learn_rate);
+			    (node->delta_output_sum * prev_node->activated_value)
+			    * learn_rate);
 
 			// Just add my input nodes to queue.
 			if (synapse->reverse_node != NULL) {
