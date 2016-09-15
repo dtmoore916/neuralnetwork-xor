@@ -9,6 +9,7 @@
 #include <time.h>
 
 #include <iostream>
+#include <iomanip>
 
 #include <queue>
 #include <vector>
@@ -38,9 +39,8 @@ public:
 	bool ready;
 	float output;
 	float weight;
-	float updated_weight;
 
-	std::vector<float> updated_weights;
+	std::vector<float> delta_weights;
 	class node *forward_node;
 	class node *reverse_node;
 };
@@ -54,6 +54,7 @@ public:
 
 class Network {
 private:
+	static const float learn_rate;
 	std::queue<class node *> processing_queue;
 
 	class node* create_node(std::string name, float value);

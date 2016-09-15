@@ -1,5 +1,7 @@
 #include "network.h"
 
+const float Network::learn_rate = 1.0;
+
 Network::Network(std::vector<class data> *training_data, int num_hidden)
 {
 	// Initialize random
@@ -74,31 +76,38 @@ void Network::connect_nodes(class node *from_node, class node *to_node, float we
 
 void Network::print_results()
 {
-	//std::cout << "size: " << (*training_data).size() << std::endl;
-	//std::cout << "size1: " << input_nodes.size() << std::endl;
 	float percent_error = 0.0;
 
 	for(int i = 0; i < (*training_data).size(); ++i) {
 		set_inputs_outputs((*training_data)[i]);
 		forward_propagate();
 
-		std::cout << "[,";
+		std::cout << std::setprecision(2) << std::fixed;
+		std::cout << "[";
+
 		for (int j = 0; j < input_nodes.size(); ++j) {
-			std::cout << input_nodes[j]->value << ", ";
+			if (j != 0)
+				std::cout << ", ";
+			std::cout << input_nodes[j]->value;
 		}
-		std::cout << ",] ==> ";
+		std::cout << "] ==> ";
 
 		percent_error = 0.0;
-		std::cout << "[,";
+
+		std::cout << std::setprecision(4) << std::fixed;
+		std::cout << "[";
+
 		for (int j = 0; j < output_nodes.size(); ++j) {
-			std::cout << output_nodes[j]->activated_value << ", ";
+			if (j != 0)
+				std::cout << ", ";
+			std::cout << output_nodes[j]->activated_value;
 
 			percent_error += fabs(
-				output_nodes[j]->activated_value / output_nodes[j]->target_value)
-				* 100.0;
+				(output_nodes[j]->target_value - output_nodes[j]->activated_value));
 		}
-		percent_error = percent_error / output_nodes.size();
-		std::cout << ",], Error " << "%";
+		percent_error = percent_error / output_nodes.size() * 100.0;
+		std::cout << std::setprecision(2) << std::fixed;
+		std::cout << "] Error " << percent_error << "%";
 
 		std::cout << std::endl;
 	}
@@ -129,7 +138,7 @@ float Network::get_initial_weight()
 	static const int initial_weight_resolution = 10;
 
 	/* generate secret number between 1 and initial_weight_resolution: */
-	return 1 / (rand() % initial_weight_resolution + 1);
+	return 1.0 / (rand() % initial_weight_resolution + 1);
 }
 
 float Network::sigmoid(float input)
@@ -153,7 +162,6 @@ void Network::synapses_reset(void)
 {
 	for(int i = 0; i < synapses.size(); ++i) {
 		synapses[i]->ready = false;
-		synapses[i]->updated_weight = 0;
 		synapses[i]->output = 0;
 	}
 }
@@ -176,13 +184,12 @@ void Network::set_inputs_outputs(const class data &data)
 void Network::update_weights()
 {
 	for(int i = 0; i < synapses.size(); ++i) {
-		synapses[i]->weight = 0;
-		for(int j = 0; j < synapses[i]->updated_weights.size(); ++j) {
-			synapses[i]->weight += synapses[i]->updated_weights[j];
+		for(int j = 0; j < synapses[i]->delta_weights.size(); ++j) {
+			synapses[i]->weight += synapses[i]->delta_weights[j];
 		}
-		synapses[i]->weight /= synapses[i]->updated_weights.size();
-		synapses[i]->updated_weights.clear();
+		synapses[i]->delta_weights.clear();
 	}
+
 }
 
 void Network::forward_propagate()
@@ -211,7 +218,6 @@ void Network::forward_propagate()
 		if (!node_ready)
 			continue;
 
-		//std::cout << " forward: " << node->name << std::endl;
 		if (node->synapse_inputs.size() == 0) {
 			//input node
 			node->activated_value = node->value;
@@ -221,7 +227,6 @@ void Network::forward_propagate()
 				node->value += node->synapse_inputs[i]->output;
 			}
 			node->activated_value = sigmoid(node->value);
-			//std::cout << " hello " << node->activated_value << std::endl;
 		}
 
 		// process my output synapse
@@ -307,8 +312,9 @@ void Network::back_propagate()
 			class synapse *synapse = node->synapse_inputs[i];
 			class node *prev_node = synapse->reverse_node;
 
-			synapse->updated_weight = synapse->weight +
-				((node->delta_output_sum * prev_node->activated_value) * 1.0/*learn rate*/);
+			synapse->delta_weights.push_back(
+				(node->delta_output_sum * prev_node->activated_value)
+				* learn_rate);
 
 			// Just add my input nodes to queue.
 			if (synapse->reverse_node != NULL) {
@@ -317,11 +323,6 @@ void Network::back_propagate()
 		}
 
 		node->ready = true;
-	}
-
-	// save our updated weights from this back propagation
-	for(int i = 0; i < synapses.size(); ++i) {
-		synapses[i]->updated_weights.push_back(synapses[i]->updated_weight);
 	}
 }
 
