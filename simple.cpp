@@ -1,33 +1,19 @@
 #include "simple.h"
+#include "network.h"
 
-#include <ctype.h>
-#include <math.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <time.h>
 
-#include <iostream>
+#if 0
+std::vector<class node *> gNodes;
+std::vector<class synapse *> gSynapses;
 
-#include <queue>
-#include <vector>
+std::vector<class node *> gInputNodes;
+std::vector<class node *> gOutputNodes;
 
-std::vector<struct node *> gNodes;
-std::vector<struct synapse *> gSynapses;
-
-std::vector<struct node *> gInputNodes;
-std::vector<struct node *> gOutputNodes;
-
-std::queue<struct node *> gProcessingQueue;
+std::queue<class node *> gProcessingQueue;
 
 std::vector<float> gInput1_Values;
 std::vector<float> gInput2_Values;
 std::vector<float> gOutput_Values;
-
-float divide(float dividend, float divisor)
-{
-	if (divisor == 0.0) return 0.0;
-	return dividend / divisor;
-}
 
 float sigmoid(float input)
 {
@@ -45,20 +31,20 @@ float get_random(int max)
 	return rand() % max + 1;
 }
 
-struct node* create_node(std::string name, float value)
+class node* create_node(std::string name, float value)
 {
-	struct node *node = (struct node*)calloc(1, sizeof(struct node));
+	class node *node = (class node*)calloc(1, sizeof(class node));
 	gNodes.push_back(node);
 	node->name = name;
 	node->value = value;
 	return node;
 }
 
-void connect_nodes(struct node *from_node, struct node *to_node, float weight)
+void connect_nodes(class node *from_node, class node *to_node, float weight)
 {
-	struct synapse *synapse;
+	class synapse *synapse;
 
-	synapse = (struct synapse *)calloc(1, sizeof(*synapse));
+	synapse = (class synapse *)calloc(1, sizeof(*synapse));
 	synapse->name = from_node->name + " -> " + to_node->name;
 	synapse->weight = weight;
 	synapse->forward_node = to_node;
@@ -116,7 +102,7 @@ void forward_propagate()
 	synapses_reset();
 
 	while(gProcessingQueue.size() != 0) {
-		struct node *node = gProcessingQueue.front();
+		class node *node = gProcessingQueue.front();
 		bool node_ready = true;
 
 		gProcessingQueue.pop();
@@ -151,7 +137,7 @@ void forward_propagate()
 
 			// check if the node connected to my output is ready to be
 			// processed
-			struct node *next_node = node->synapse_outputs[i]->forward_node;
+			class node *next_node = node->synapse_outputs[i]->forward_node;
 			bool next_node_ready = true;
 			if (next_node->synapse_inputs.size() > 0) {
 				for(int j = 0; j < next_node->synapse_inputs.size(); ++j) {
@@ -185,7 +171,7 @@ void back_propagate()
 	nodes_reset();
 
 	while(gProcessingQueue.size() != 0) {
-		struct node *node;
+		class node *node;
 		float delta_output_sum_total = 0.0;
 		bool node_ready = true;
 
@@ -196,7 +182,7 @@ void back_propagate()
 			continue; // Input nodes are not processed
 
 		for(int i = 0; i < node->synapse_outputs.size(); ++i) {
-			struct node *next_node = node->synapse_outputs[i]->forward_node;
+			class node *next_node = node->synapse_outputs[i]->forward_node;
 			if (!next_node->ready) {
 				node_ready = false;
 			}
@@ -212,7 +198,7 @@ void back_propagate()
 		 * no output synapses */
 		delta_output_sum_total = 0;
 		for(int i = 0; i < node->synapse_outputs.size(); ++i) {
-			struct node *next_node = node->synapse_outputs[i]->forward_node;
+			class node *next_node = node->synapse_outputs[i]->forward_node;
 
 			// Add up all the delta output sums of all our output synapses.
 			// To distribute the next node's delta_output_sum back to each
@@ -241,8 +227,8 @@ void back_propagate()
 
 		// Now distribute the delta output sum amoung my input synapses
 		for(int i = 0; i < node->synapse_inputs.size(); ++i) {
-			struct synapse *synapse = node->synapse_inputs[i];
-			struct node *prev_node = synapse->reverse_node;
+			class synapse *synapse = node->synapse_inputs[i];
+			class node *prev_node = synapse->reverse_node;
 
 			//   *I mistakenly was dividing here(DOS) which does the oposite of what
 			//    we want since dividing by a smaller number results in a greater
@@ -276,17 +262,19 @@ void update_weights(void)
 		gSynapses[i]->updated_weights.clear();
 	}
 }
+#endif
 
 int main(int argc, char *argv[])
 {
-	struct node *input1 = create_node("I1", 1.0);
-	struct node *input2 = create_node("I2", 1.0);
+#if 0
+	class node *input1 = create_node("I1", 1.0);
+	class node *input2 = create_node("I2", 1.0);
 
-	struct node *hidden1 = create_node("H1", 0.0);
-	struct node *hidden2 = create_node("H2", 0.0);
-	struct node *hidden3 = create_node("H3", 0.0);
+	class node *hidden1 = create_node("H1", 0.0);
+	class node *hidden2 = create_node("H2", 0.0);
+	class node *hidden3 = create_node("H3", 0.0);
 
-	struct node *output1 = create_node("O1", 0.0);
+	class node *output1 = create_node("O1", 0.0);
 
 	// Initialize random seed: constant value for testing
 	srand(1.0);  // srand (time(NULL));
@@ -355,6 +343,31 @@ int main(int argc, char *argv[])
 	for(int i = 0; i < gSynapses.size(); i++) {
 		free(gSynapses[i]);
 	}
+
+#endif
+	class data data;
+	std::vector<class data> training_data;
+
+	data.inputs.push_back(0.0);
+	data.inputs.push_back(0.0);  /* ==> */ data.outputs.push_back(0.0);
+	training_data.push_back(data);
+
+	data.inputs[0] = 1.0;
+	data.inputs[1] = 0.0;  /* ==> */ data.outputs[0] = 1.0;
+	training_data.push_back(data);
+
+	data.inputs[0] = 0.0;
+	data.inputs[1] = 1.0;  /* ==> */ data.outputs[0] = 1.0;
+	training_data.push_back(data);
+
+	data.inputs[0] = 1.0;
+	data.inputs[1] = 1.0;  /* ==> */ data.outputs[0] = 0.0;
+	training_data.push_back(data);
+
+	Network network(&training_data, 3);
+	network.create_connections_default();
+	network.train(1);
+	network.print_results();
 
 	return 0;
 }

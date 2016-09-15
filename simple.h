@@ -1,13 +1,24 @@
 #ifndef _SIMPLE_H_
 #define _SIMPLE_H_
 
-#include <vector>
+#include <ctype.h>
+#include <math.h>
+#include <stdio.h>
+#include <stdlib.h>
 #include <string>
+#include <time.h>
 
-struct node;
-struct synapse;
+#include <iostream>
 
-struct node {
+#include <queue>
+#include <vector>
+
+#if 0
+class node;
+class synapse;
+
+class node {
+public:
 	std::string name;
 
 	bool ready;
@@ -16,11 +27,12 @@ struct node {
 	float target_value;
 	float delta_output_sum;
 
-	std::vector<struct synapse *> synapse_inputs;
-	std::vector<struct synapse *> synapse_outputs;
+	std::vector<class synapse *> synapse_inputs;
+	std::vector<class synapse *> synapse_outputs;
 };
 
-struct synapse {
+class synapse {
+public:
 	std::string name;
 
 	bool ready;
@@ -29,8 +41,9 @@ struct synapse {
 	float updated_weight;
 
 	std::vector<float> updated_weights;
-	struct node *forward_node;
-	struct node *reverse_node;
+	class node *forward_node;
+	class node *reverse_node;
 };
+#endif
 
 #endif// _SIMPLE_H_
