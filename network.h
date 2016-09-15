@@ -14,7 +14,7 @@
 #include <queue>
 #include <vector>
 
-// TODO: Move to own files
+class data;
 class node;
 class synapse;
 
@@ -50,7 +50,6 @@ public:
 	std::vector<float> inputs;
 	std::vector<float> outputs;
 };
-
 
 class Network {
 private:
