@@ -83,6 +83,7 @@ private:
 	bool is_output(class node *node);
 	bool inputs_ready(class node *node);
 	bool outputs_ready(class node *node);
+
 public:
 	std::vector<class data> *training_data;
 	std::vector<class node *> input_nodes;

@@ -21,7 +21,7 @@ OBJ += $(patsubst %.cpp,%.o,$(wildcard *.cpp))
 	$(CC) -c -o $@ $< $(CFLAGS)
 
 $(PROGRAM): $(OBJ)
-	gcc -lstdc++ -o $@ $^ $(CFLAGS)
+	$(CC) -o $@ $^ $(CFLAGS)
 
 .PHONY: format
 format: $(SRC) $(DEPS)
