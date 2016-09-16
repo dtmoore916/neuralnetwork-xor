@@ -39,6 +39,7 @@ public:
 	uint64_t identification;
 
 	bool ready;
+
 	float output;
 	float weight;
 
@@ -58,20 +59,30 @@ private:
 	static const float learn_rate;
 	uint64_t num_nodes;
 	uint64_t num_synapses;
-	std::queue<class node *> processing_queue;
 
 	class node* create_node(uint64_t identification, float value);
 	void connect_nodes(class node *from_node, class node *to_node,
-		uint64_t identification, float weight);
+	                   uint64_t identification, float weight);
 
-	float get_initial_weight();
-	void nodes_reset();
-	void synapses_reset();
+	void forward_propagate();
+	void back_propagate();
+
 	float sigmoid(float input);
 	float sigmoid_prime(float input);
+
+	float get_initial_weight();
+
+	void reset_network();
+	void nodes_reset();
+	void synapses_reset();
+
 	void set_inputs_outputs(const class data &data);
 	void update_weights();
 
+	bool is_input(class node *node);
+	bool is_output(class node *node);
+	bool inputs_ready(class node *node);
+	bool outputs_ready(class node *node);
 public:
 	std::vector<class data> *training_data;
 	std::vector<class node *> input_nodes;
@@ -81,14 +92,14 @@ public:
 	std::vector<class synapse *> synapses;
 
 	Network(std::vector<class data> *training_data, int num_hidden);
+
 	void create_connections_default();
 	void create_connections(int layers);
 
 	void train(int num_epochs);
 	void process(std::vector<class data> *data);
+
 	void print_results();
-	void forward_propagate();
-	void back_propagate();
 };
 
 #endif //_NETWORK_H_

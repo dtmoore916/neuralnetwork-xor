@@ -38,14 +38,14 @@ void Network::create_connections_default()
 	for(int i = 0; i < input_nodes.size(); ++i) {
 		for(int j = 0; j < hidden_nodes.size(); ++j) {
 			connect_nodes(input_nodes[i], hidden_nodes[j],
-				num_synapses++, get_initial_weight());
+			              num_synapses++, get_initial_weight());
 		}
 	}
 
 	for(int i = 0; i < hidden_nodes.size(); ++i) {
 		for(int j = 0; j < output_nodes.size(); ++j) {
 			connect_nodes(hidden_nodes[i], output_nodes[j],
-				num_synapses++, get_initial_weight());
+			              num_synapses++, get_initial_weight());
 		}
 	}
 }
@@ -64,7 +64,7 @@ class node* Network::create_node(uint64_t identification, float value)
 }
 
 void Network::connect_nodes(class node *from_node, class node *to_node,
-	uint64_t identification, float weight)
+                            uint64_t identification, float weight)
 {
 	class synapse *synapse;
 
@@ -189,37 +189,91 @@ void Network::update_weights()
 		}
 		synapses[i]->delta_weights.clear();
 	}
-
 }
 
-void Network::forward_propagate()
+bool Network::inputs_ready(class node *node)
 {
+	bool node_ready = true;
+
+	for(int i = 0; i < node->synapse_inputs.size(); ++i) {
+		if(!node->synapse_inputs[i]->ready) {
+			node_ready = false;
+			break;
+		}
+	}
+
+	return node_ready;
+}
+
+bool Network::outputs_ready(class node *node)
+{
+	bool node_ready = true;
+
+	for(int i = 0; i < node->synapse_outputs.size(); ++i) {
+		class node *next_node = node->synapse_outputs[i]->forward_node;
+
+		if (!next_node->ready) {
+			node_ready = false;
+			break;
+		}
+	}
+
+	return node_ready;
+}
+
+bool Network::is_input(class node *node)
+{
+	return node->synapse_inputs.size() == 0;
+}
+
+bool Network::is_output(class node *node)
+{
+	return node->synapse_outputs.size() == 0;
+}
+
+
+void Network::reset_network()
+{
+	std::queue<class node *> processing_queue;
+
 	for(int i = 0; i < input_nodes.size(); ++i) {
 		processing_queue.push(input_nodes[i]);
 	}
 
-	nodes_reset();
-	synapses_reset();
+	while(processing_queue.size() != 0) {
+		class node *node = processing_queue.front();
+		processing_queue.pop();
+
+		node->ready = false;
+
+		for(int i = 0; i < node->synapse_outputs.size(); ++i) {
+			node->synapse_outputs[i]->ready = false;
+			processing_queue.push(node->synapse_outputs[i]->forward_node);
+		}
+	}
+}
+
+void Network::forward_propagate()
+{
+	std::queue<class node *> processing_queue;
+
+	for(int i = 0; i < input_nodes.size(); ++i) {
+		processing_queue.push(input_nodes[i]);
+	}
+
+	reset_network();
 
 	while(processing_queue.size() != 0) {
 		class node *node = processing_queue.front();
-		bool node_ready = true;
-
 		processing_queue.pop();
 
-		// check all nodes input synapses.
-		// (Inputs will succeed here. size() == 0)
-		for(int i = 0; i < node->synapse_inputs.size(); ++i) {
-			if(!node->synapse_inputs[i]->ready) {
-				node_ready = false;
-			}
-		}
-
-		if (!node_ready)
+		if (node == NULL)
 			continue;
 
-		if (node->synapse_inputs.size() == 0) {
-			//input node
+		if (!inputs_ready(node))
+			continue;
+
+		if (is_input(node)) {
 			node->activated_value = node->value;
 		} else {
 			node->value = 0;
@@ -235,76 +289,51 @@ void Network::forward_propagate()
 			                                   node->activated_value;
 			node->synapse_outputs[i]->ready = true;
 
-			// check if the node connected to my output is ready to be
-			// processed
-			class node *next_node = node->synapse_outputs[i]->forward_node;
-			bool next_node_ready = true;
-			if (next_node->synapse_inputs.size() > 0) {
-				for(int j = 0; j < next_node->synapse_inputs.size(); ++j) {
-					if (!next_node->synapse_inputs[j]->ready) {
-						next_node_ready = false;
-					}
-				}
-
-				if (next_node_ready) {
-					processing_queue.push(next_node);
-				}
-			}
+			processing_queue.push(node->synapse_outputs[i]->forward_node);
 		}
 	}
 }
 
 void Network::back_propagate()
 {
+	std::queue<class node *> processing_queue;
+
 	for(int i = 0; i < output_nodes.size(); ++i) {
 		processing_queue.push(output_nodes[i]);
 	}
 
-	nodes_reset();
+	reset_network();
 
 	while(processing_queue.size() != 0) {
 		class node *node = processing_queue.front();
-
 		processing_queue.pop();
 
-		if (node->synapse_inputs.size() == 0)
-			continue; // Input nodes are not processed
-
-		bool node_ready = true;
-		for(int i = 0; i < node->synapse_outputs.size(); ++i) {
-			class node *next_node = node->synapse_outputs[i]->forward_node;
-			if (!next_node->ready) {
-				node_ready = false;
-			}
-		}
-
-		if (!node_ready) {
-			// This node is not ready yet.  It will be added
-			// again by one of its outputs.
+		if (node == NULL)
 			continue;
-		}
 
-		/* Only Hidden nodes will loop through here.  Output Nodes have
-		 * no output synapses */
-		float delta_output_sum_total = 0.0;
-		for(int i = 0; i < node->synapse_outputs.size(); ++i) {
-			class node *next_node = node->synapse_outputs[i]->forward_node;
+		if (is_input(node))
+			continue; // No need to process Input nodes
 
-			delta_output_sum_total +=
-			    sigmoid_prime(node->value) *
-			    (next_node->delta_output_sum * node->synapse_outputs[i]->weight);
-		}
+		if (!outputs_ready(node))
+			continue;
 
-		// Now compute this nodes delta output sum
-		if (node->synapse_outputs.size() != 0) {
-			// Hidden node
-			node->delta_output_sum = (delta_output_sum_total /
-			                          node->synapse_outputs.size());
-		} else {
-			// Output node
+		if (is_output(node)) {
 			float delta_error = node->target_value - node->activated_value;
 
 			node->delta_output_sum = sigmoid_prime(node->value) * (delta_error);
+		} else {
+			float delta_output_sum_total = 0.0;
+
+			for(int i = 0; i < node->synapse_outputs.size(); ++i) {
+				class node *next_node = node->synapse_outputs[i]->forward_node;
+
+				delta_output_sum_total +=
+				    sigmoid_prime(node->value) *
+				    (next_node->delta_output_sum * node->synapse_outputs[i]->weight);
+			}
+
+			node->delta_output_sum = (delta_output_sum_total /
+			                          node->synapse_outputs.size());
 		}
 
 		// Now distribute the delta output sum amoung my input synapses
@@ -316,10 +345,7 @@ void Network::back_propagate()
 			    (node->delta_output_sum * prev_node->activated_value)
 			    * learn_rate);
 
-			// Just add my input nodes to queue.
-			if (synapse->reverse_node != NULL) {
-				processing_queue.push(synapse->reverse_node);
-			}
+			processing_queue.push(prev_node);
 		}
 
 		node->ready = true;
