@@ -86,9 +86,11 @@ private:
 
 public:
 	std::vector<class data> *training_data;
+
 	std::vector<class node *> input_nodes;
 	std::vector<class node *> hidden_nodes;
 	std::vector<class node *> output_nodes;
+
 	std::vector<class node *> nodes;
 	std::vector<class synapse *> synapses;
 
