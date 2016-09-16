@@ -7,24 +7,26 @@ Network::Network(std::vector<class data> *training_data, int num_hidden)
 	// Initialize random
 	srand(1.0);  // srand (time(NULL));
 
+	this->num_nodes = 0;
+	this->num_synapses = 0;
 	this->training_data = training_data;
 
 	for(int i = 0; i < (*training_data)[0].inputs.size(); ++i) {
-		class node *node = create_node("I", 0);
+		class node *node = create_node(num_nodes++, 0);
 
 		nodes.push_back(node);
 		input_nodes.push_back(node);
 	}
 
 	for(int i = 0; i < num_hidden; ++i) {
-		class node *node = create_node("H", 0);
+		class node *node = create_node(num_nodes++, 0);
 
 		nodes.push_back(node);
 		hidden_nodes.push_back(node);
 	}
 
 	for(int i = 0; i < (*training_data)[0].outputs.size(); ++i) {
-		class node *node = create_node("O", 0);
+		class node *node = create_node(num_nodes++, 0);
 
 		nodes.push_back(node);
 		output_nodes.push_back(node);
@@ -35,13 +37,15 @@ void Network::create_connections_default()
 {
 	for(int i = 0; i < input_nodes.size(); ++i) {
 		for(int j = 0; j < hidden_nodes.size(); ++j) {
-			connect_nodes(input_nodes[i], hidden_nodes[j], get_initial_weight());
+			connect_nodes(input_nodes[i], hidden_nodes[j],
+				num_synapses++, get_initial_weight());
 		}
 	}
 
 	for(int i = 0; i < hidden_nodes.size(); ++i) {
 		for(int j = 0; j < output_nodes.size(); ++j) {
-			connect_nodes(hidden_nodes[i], output_nodes[j], get_initial_weight());
+			connect_nodes(hidden_nodes[i], output_nodes[j],
+				num_synapses++, get_initial_weight());
 		}
 	}
 }
@@ -51,20 +55,21 @@ void Network::create_connections(int layers)
 
 }
 
-class node* Network::create_node(std::string name, float value)
+class node* Network::create_node(uint64_t identification, float value)
 {
 	class node *node = (class node*)calloc(1, sizeof(class node));
-	node->name = name;
+	node->identification = identification;
 	node->value = value;
 	return node;
 }
 
-void Network::connect_nodes(class node *from_node, class node *to_node, float weight)
+void Network::connect_nodes(class node *from_node, class node *to_node,
+	uint64_t identification, float weight)
 {
 	class synapse *synapse;
 
 	synapse = (class synapse *)calloc(1, sizeof(*synapse));
-	synapse->name = from_node->name + " -> " + to_node->name;
+	synapse->identification = identification;
 	synapse->weight = weight;
 	synapse->forward_node = to_node;
 	synapse->reverse_node = from_node;
@@ -162,7 +167,6 @@ void Network::synapses_reset(void)
 {
 	for(int i = 0; i < synapses.size(); ++i) {
 		synapses[i]->ready = false;
-		synapses[i]->output = 0;
 	}
 }
 
@@ -170,14 +174,10 @@ void Network::set_inputs_outputs(const class data &data)
 {
 	for(int i = 0; i < data.inputs.size() && i < input_nodes.size(); ++i) {
 		input_nodes[i]->value = data.inputs[i];
-		if (input_nodes[i]->value == 0.0)
-			input_nodes[i]->value = 0.01;
 	}
 
 	for(int i = 0; i < data.inputs.size() && i < output_nodes.size(); ++i) {
 		output_nodes[i]->target_value = data.outputs[i];
-		if (output_nodes[i]->target_value == 0.0)
-			output_nodes[i]->target_value = 0.01;
 	}
 }
 
