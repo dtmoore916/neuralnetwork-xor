@@ -1,0 +1,12 @@
+Neural Network XOR example
+
+2 Inputs => 3 Hidden => 1 Output
+
+Fully connected network.  The initial weights are set randomly but the random seed is set to 1.0 so that we will receive the same results every time for testing.
+
+Example Output:
+[1.00, 1.00] ==> [0.0067] Error 0.67%
+[0.00, 1.00] ==> [0.9797] Error 2.03%
+[0.00, 0.00] ==> [0.0333] Error 3.33%
+[1.00, 0.00] ==> [0.9797] Error 2.03%
+
