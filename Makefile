@@ -1,33 +1,35 @@
 PROGRAM=xor
 CC=g++
 
+MKDIR_P = mkdir -p
+OBJ_DIR = _objs
+
 CFLAGS=-I.
 
 DEPS := $(wildcard *.h)
-
-SRC := $(wildcard *.c)
 SRC += $(wildcard *.cpp)
-
-ASTYLE_BACKUPS := $(patsubst %.c,%.c.orig,$(wildcard *.c))
-ASTYLE_BACKUPS += $(patsubst %.cpp,%.cpp.orig,$(wildcard *.cpp))
-ASTYLE_BACKUPS += $(patsubst %.h,%.h.orig,$(wildcard *.h))
-
-OBJ := $(patsubst %.c,%.o,$(wildcard *.c))
-OBJ += $(patsubst %.cpp,%.o,$(wildcard *.cpp))
+OBJ += $(patsubst %.cpp,$(OBJ_DIR)/%.o,$(wildcard *.cpp))
 
 #$(warning $(OBJ))
 
-%.o: %.c $(DEPS)
-	$(CC) -c -o $@ $< $(CFLAGS)
+all: create_directories $(PROGRAM)
 
 $(PROGRAM): $(OBJ)
 	$(CC) -o $@ $^ $(CFLAGS)
 
+$(OBJ_DIR)/%.o: %.cpp $(DEPS)
+	$(CC) -c -o $@ $< $(CFLAGS)
+
+.PHONY: create_directories
+create_directories: ${OBJ_DIR}
+${OBJ_DIR}:
+	${MKDIR_P} ${OBJ_DIR}
+
 .PHONY: format
 format: $(SRC) $(DEPS)
-	astyle --indent=tab=4 $^
+	astyle -n --indent=tab=4 $^
 
 .PHONY: clean
 clean:
-	rm -f $(PROGRAM) $(OBJ) $(ASTYLE_BACKUPS)
+	rm -rf $(PROGRAM) $(OBJ) $(OBJ_DIR)
 
